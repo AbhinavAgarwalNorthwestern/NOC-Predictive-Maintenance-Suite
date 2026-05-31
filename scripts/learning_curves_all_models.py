@@ -20,16 +20,16 @@ from pathlib import Path
 os.environ.setdefault("MPLBACKEND", "Agg")
 warnings.filterwarnings("ignore")
 
-import numpy as np
-import pandas as pd
-import xgboost as xgb
-import matplotlib.pyplot as plt
-from sklearn.metrics import roc_auc_score
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import xgboost as xgb  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+from sklearn.metrics import roc_auc_score  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from battery_pdm.common.features import compute_features
-from battery_pdm.common.survival import _cindex
-from battery_pdm.synth.load_shedding import build_load_shedding_schedule
+from battery_pdm.common.features import compute_features  # noqa: E402
+from battery_pdm.common.survival import _cindex  # noqa: E402
+from battery_pdm.synth.load_shedding import build_load_shedding_schedule  # noqa: E402
 
 OUTPUTS = Path("outputs")
 SEED = 42
@@ -199,53 +199,7 @@ def main():
         print(f"  frac={frac:.2f}: {n_train_sites} sites, {train_m_fail.sum()} lifecycles, "
               f"C-index={cindex:.4f}")
 
-    # =================================================================
-    # MODEL 3: AUTONOMY (cox + schedule)
-    # =================================================================
-    step("MODEL 3: Autonomy model learning curve (Cox + schedule)")
-    auto = extract_autonomy_labels(alarms)
-    auto = auto.merge(sites[["site_id"]], on="site_id").reset_index(drop=True)
-    auto_feats = compute_features(
-        labels=auto, groups=["alarm_history", "site_static", "load_shedding_schedule"],
-        inputs={"alarms": alarms, "site_static": sites, "schedule": schedule},
-        ref_time_col="mains_fail_h",
-    )
-    auto_cols = [c for c in auto_feats.columns
-                 if c not in ("site_id", "mains_fail_h")
-                 and c not in ("charger_misconfigured", "aging_multiplier")]
-
-    test_m_auto = auto["site_id"].isin(test_sites).values
-    X_te_auto = auto_feats.loc[test_m_auto, auto_cols].astype(float).fillna(0.0)
-    times_te_a = auto["hours_to_lvd"].values[test_m_auto]
-    events_te_a = auto["event"].values[test_m_auto]
-    print(f"  Test events: {test_m_auto.sum()} ({events_te_a.sum()} LVDs)")
-
-    for frac in TRAIN_FRACTIONS:
-        n_train_sites = max(1, int(len(pool_sites) * frac))
-        train_sites_subset = set(pool_sites[:n_train_sites])
-        train_m_auto = auto["site_id"].isin(train_sites_subset).values
-        X_tr_auto = auto_feats.loc[train_m_auto, auto_cols].astype(float).fillna(0.0)
-        y_tr = auto.loc[train_m_auto, "hours_to_lvd"].values.astype(float).copy()
-        y_tr[auto.loc[train_m_auto, "event"].values == 0] *= -1
-
-        if train_m_auto.sum() < 50:
-            continue
-        booster = xgb.train(
-            {"objective": "survival:cox", "eval_metric": "cox-nloglik",
-             "tree_method": "hist", "max_depth": 4, "learning_rate": 0.05,
-             "min_child_weight": 5, "subsample": 0.8, "colsample_bytree": 0.8},
-            xgb.DMatrix(X_tr_auto, label=y_tr), num_boost_round=200, verbose_eval=False,
-        )
-        risk = booster.predict(xgb.DMatrix(X_te_auto))
-        cindex = _cindex(risk, times_te_a, events_te_a)
-        results.append({
-            "model": "autonomy_model", "fraction": frac,
-            "n_train_sites": n_train_sites, "n_train_obs": int(train_m_auto.sum()),
-            "n_train_positives": int(auto.loc[train_m_auto, "event"].sum()),
-            "metric_name": "C-index", "metric_value": float(cindex),
-        })
-        print(f"  frac={frac:.2f}: {n_train_sites} sites, {train_m_auto.sum()} events, "
-              f"C-index={cindex:.4f}")
+    # Autonomy model was decommissioned — drain predictor subsumes its functionality.
 
     # =================================================================
     # PLOT

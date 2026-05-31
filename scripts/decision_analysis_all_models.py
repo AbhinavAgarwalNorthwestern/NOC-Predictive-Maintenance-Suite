@@ -30,11 +30,11 @@ warnings.filterwarnings("ignore")
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from battery_pdm.common.features import compute_features
-from battery_pdm.monitoring.threshold import (
+from battery_pdm.common.features import compute_features  # noqa: E402
+from battery_pdm.monitoring.threshold import (  # noqa: E402
     CostMatrix, optimal_threshold, top_k_dispatch,
 )
-from battery_pdm.synth.load_shedding import build_load_shedding_schedule
+from battery_pdm.synth.load_shedding import build_load_shedding_schedule  # noqa: E402
 
 OUTPUTS = Path("outputs")
 SEED = 42
@@ -67,7 +67,8 @@ def main():
     from battery_pdm.monitoring.model_registry import load_calibrator, apply_calibrator
     model_dir = OUTPUTS / "models" / "drain_predictor_48h"
     meta = json.loads((model_dir / "meta.json").read_text())
-    booster = xgb.Booster(); booster.load_model(str(model_dir / "booster.json"))
+    booster = xgb.Booster()
+    booster.load_model(str(model_dir / "booster.json"))
     calibrator = load_calibrator(model_dir)
 
     # Build daily labels + features (matching the training pipeline)
@@ -254,74 +255,8 @@ def main():
     print(f"\n  Insight: with K={fail_rows[1]['param'][2:]} (typical monthly budget), we'd catch "
           f"{fail_rows[1]['recall_at_k']:.0%} of failures.")
 
-    # ==================================================================
-    # MODEL 3: AUTONOMY (survival:cox per AC_MAINS_FAIL event)
-    # ==================================================================
-    step("MODEL 3: AUTONOMY MODEL (dispatch order during outage)")
-    print("  Threshold concept does NOT apply (output is a hazard score).")
-    print("  Operational use: top-K dispatch order when multiple sites lose power simultaneously.")
-
-    auto_labels = extract_autonomy_labels(alarms)
-    auto_labels = auto_labels.merge(sites[["site_id"]], on="site_id")
-    print(f"  AC_MAINS_FAIL events: {len(auto_labels)}, "
-          f"LVD events: {auto_labels['event'].sum()} ({auto_labels['event'].mean():.1%})")
-
-    if len(auto_labels) == 0:
-        print("  No autonomy labels — skipping")
-    else:
-        auto_features = compute_features(
-            labels=auto_labels, groups=["alarm_history", "site_static"],
-            inputs={"alarms": alarms, "site_static": sites},
-            ref_time_col="mains_fail_h",
-        )
-        auto_feature_cols = [c for c in auto_features.columns
-                             if c not in ("site_id", "mains_fail_h")
-                             and c not in ("charger_misconfigured", "aging_multiplier")]
-        test_sites_set = set(sample[int(len(sample) * 0.80):])
-        auto_test_mask = auto_features["site_id"].isin(test_sites_set).values
-        auto_train_mask = ~auto_test_mask
-
-        Xa_train = auto_features.loc[auto_train_mask, auto_feature_cols].astype(float).fillna(0.0)
-        Xa_test = auto_features.loc[auto_test_mask, auto_feature_cols].astype(float).fillna(0.0)
-        ya_train = auto_labels.loc[auto_train_mask, "hours_to_lvd"].values.astype(float).copy()
-        ya_train[auto_labels.loc[auto_train_mask, "event"].values == 0] *= -1
-
-        booster_auto = xgb.train(
-            {"objective": "survival:cox", "eval_metric": "cox-nloglik", "tree_method": "hist",
-             "max_depth": 4, "learning_rate": 0.05, "min_child_weight": 5,
-             "subsample": 0.8, "colsample_bytree": 0.8},
-            xgb.DMatrix(Xa_train, label=ya_train), num_boost_round=200, verbose_eval=False,
-        )
-        auto_risk = booster_auto.predict(xgb.DMatrix(Xa_test))
-        auto_events = auto_labels.loc[auto_test_mask, "event"].values
-        auto_hours = auto_labels.loc[auto_test_mask, "hours_to_lvd"].values
-        print(f"  Test events: {len(auto_events)}, LVDs: {auto_events.sum()}")
-
-        # "Real LVD within HORIZON hours" — the operational question
-        HORIZON_HOURS = 12
-        y_auto = ((auto_events == 1) & (auto_hours <= HORIZON_HOURS)).astype(int)
-
-        auto_rows = []
-        for k in [10, 25, 50, 100]:
-            if k > len(auto_risk):
-                continue
-            order = np.argsort(-auto_risk)
-            pred = np.zeros_like(y_auto)
-            pred[order[:k]] = 1
-            tp = int(((pred == 1) & (y_auto == 1)).sum())
-            fp = int(((pred == 1) & (y_auto == 0)).sum())
-            fn = int(((pred == 0) & (y_auto == 1)).sum())
-            auto_rows.append({
-                "model": "autonomy_model",
-                "strategy": "Top-K (dispatch during multi-site outage)",
-                "param": f"K={k}",
-                "n_flagged": k,
-                "TP": tp, "FP": fp, "FN": fn, "TN": len(y_auto) - k - fn,
-                "precision_at_k": tp / k,
-                "recall_at_k": tp / max(y_auto.sum(), 1),
-            })
-        auto_df = pd.DataFrame(auto_rows)
-        print(auto_df.to_string(index=False))
+    # NOTE: MODEL 3 (AUTONOMY MODEL) was decommissioned — its functionality is
+    # subsumed by the drain predictor. The autonomy model section has been removed.
 
     # ==================================================================
     # SAVE

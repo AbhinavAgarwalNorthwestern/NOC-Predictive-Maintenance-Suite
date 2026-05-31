@@ -184,7 +184,7 @@ def main(seed: int = 42, n_sites: int = 100):
 
     # 4. Events ONLY in 48h window (hours 24-48) - can 48h model catch these?
     only_48_mask = y_test_24to48 == 1
-    no_drain_mask = (y_test_48 == 0)
+    _ = (y_test_48 == 0)  # no_drain_mask — reserved for future analysis
     print(f"\n--- Events in 24-48h window ONLY ({only_48_mask.sum()} events) ---")
     print(f"  48h model mean P(drain): {scores_48[only_48_mask].mean():.4f}")
     print(f"  24h model mean P(drain): {scores_24[only_48_mask].mean():.4f}")

@@ -358,8 +358,9 @@ def main():
                                                   ("Hybrid", hybrid_scores)]):
         pred = (scores >= 0.5).astype(int)
         cm = confusion_matrix(y_test, pred, labels=[0, 1])
-        im = ax.imshow(cm, cmap="Blues")
-        ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
+        ax.imshow(cm, cmap="Blues")
+        ax.set_xticks([0, 1])
+        ax.set_yticks([0, 1])
         ax.set_xticklabels(["No drain", "Drain"])
         ax.set_yticklabels(["No drain", "Drain"])
         ax.set_xlabel("Predicted")
@@ -403,8 +404,10 @@ def main():
         if top_drifted:
             fig, ax = plt.subplots(figsize=(10, 5))
             df = pd.DataFrame(top_drifted).head(10)
-            colors = ["#ef4444" if l == "SIGNIFICANT" else "#f59e0b" if l == "MODERATE" else "#10b981"
-                     for l in df["drift_level"]]
+            colors = [
+                "#ef4444" if level == "SIGNIFICANT" else "#f59e0b" if level == "MODERATE" else "#10b981"
+                for level in df["drift_level"]
+            ]
             ax.barh(df["feature"], df["psi"], color=colors)
             ax.axvline(0.10, color="orange", linestyle="--", label="Moderate threshold")
             ax.axvline(0.25, color="red", linestyle="--", label="Significant threshold")
