@@ -776,7 +776,7 @@ locally and inspect via the MLflow UI.
 
 | Event | MLflow experiment |
 |-------|-------------------|
-| Training | `battery-pdm-drain`, `battery-pdm-failure`, `battery-pdm-autonomy` |
+| Training | `battery-pdm-drain`, `battery-pdm-failure`, `(autonomy model decommissioned)` |
 | Drift detection | `battery-pdm-drift-{model}` |
 | Concept drift | `battery-pdm-concept-drift-{model}` |
 | Shadow scoring | `battery-pdm-shadow` |

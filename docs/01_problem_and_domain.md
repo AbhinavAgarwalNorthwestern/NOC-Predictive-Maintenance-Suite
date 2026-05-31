@@ -113,7 +113,7 @@ right-censoring (some outages end before LVD because grid is restored). Cox
 proportional hazards is the textbook model. C-index measures how well we rank
 sites by who will fail soonest.
 
-We call this the **autonomy model**.
+We originally built a third model (autonomy) for this, but decommissioned it — the drain predictor subsumes its utility with superior performance (AUC 0.88 vs C-index 0.73). See notebook 04.
 
 ### Q2: Will this site drain in the *next 48 hours*?
 
@@ -190,7 +190,7 @@ Three reasons:
 
 This is why the feature pipeline is designed to accept telemetry feature groups
 later (via the extensible `@register_feature_group` pattern in
-[`src/battery_pdm/streaming/autonomy/features.py`](../src/battery_pdm/streaming/autonomy/features.py))
+[`src/battery_pdm/common/features.py (shared feature pipeline)`](../src/battery_pdm/common/features.py (shared feature pipeline)))
 but doesn't depend on them.
 
 ## What's specifically NOT in scope

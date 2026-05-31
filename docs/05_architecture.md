@@ -279,7 +279,7 @@ project_01/
 │   │   ├── physics.py             ← Arrhenius, sulfation, Shepherd
 │   │   ├── load_shedding.py       ← regional schedule generator
 │   │   └── config.py
-│   ├── streaming/autonomy/
+│   ├── (autonomy module removed)
 │   │   ├── features.py            ← THE shared feature pipeline
 │   │   ├── labels.py
 │   │   ├── train.py
@@ -293,7 +293,7 @@ project_01/
 │   │   ├── training_flow.py
 │   │   ├── drain_predictor_flow.py
 │   │   ├── failure_scoring_flow.py
-│   │   ├── autonomy_flow.py
+│   │   ├── (autonomy flow decommissioned — see notebook 04)
 │   │   ├── drift_monitor_flow.py
 │   │   └── retraining_flow.py
 │   ├── aws/                       ← AWS-specific helpers

@@ -1,29 +1,28 @@
-"""Decision strategy comparison across all three models.
+"""Decision strategy comparison across models.
 
 Binary classifier (drain predictor): threshold-based decisions make sense.
-Survival models (failure, autonomy): output hazard scores; the right operational
+Survival models (failure): output hazard scores; the right operational
 question is top-K ranking, not thresholding.
 
 Outputs a unified table comparing:
     - Drain predictor: default 0.5 / F1-max / cost-aware / top-K(200, 500)
     - Failure model:   top-K(20, 50, 100) replacements per month — precision/recall@K
-    - Autonomy model:  top-K(10, 25, 50) dispatch slots — precision/recall@K
 
 All numbers are auditable (TP/FP/FN reported).
 """
 
 from __future__ import annotations
 
-import sys
+import json
 import os
+import sys
 import warnings
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.metrics import (
-    roc_auc_score, precision_score, recall_score, f1_score, confusion_matrix,
-)
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 
 os.environ.setdefault("MPLBACKEND", "Agg")
 warnings.filterwarnings("ignore")
@@ -31,9 +30,8 @@ warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from battery_pdm.common.features import compute_features  # noqa: E402
-from battery_pdm.monitoring.threshold import (  # noqa: E402
-    CostMatrix, optimal_threshold, top_k_dispatch,
-)
+from battery_pdm.monitoring.model_registry import apply_calibrator, load_calibrator  # noqa: E402
+from battery_pdm.monitoring.threshold import CostMatrix, optimal_threshold, top_k_dispatch  # noqa: E402
 from battery_pdm.synth.load_shedding import build_load_shedding_schedule  # noqa: E402
 
 OUTPUTS = Path("outputs")
@@ -63,8 +61,6 @@ def main():
     step("MODEL 1: DRAIN PREDICTOR (48h binary)")
 
     # Load trained model + calibrator
-    import json
-    from battery_pdm.monitoring.model_registry import load_calibrator, apply_calibrator
     model_dir = OUTPUTS / "models" / "drain_predictor_48h"
     meta = json.loads((model_dir / "meta.json").read_text())
     booster = xgb.Booster()

@@ -100,14 +100,13 @@ jobs:
       - name: Terraform fmt check
         run: terraform -chdir=infra fmt -check -recursive
         continue-on-error: true
-      - name: Terraform init (local backend for syntax check)
+      - name: Terraform init (syntax check only)
         run: |
-          # Override the S3 backend with a local backend so init works without AWS creds.
-          # This only checks HCL syntax — actual deployment uses the S3 backend.
-          echo 'terraform { backend "local" {} }' > /tmp/backend_override.tf
-          cp /tmp/backend_override.tf infra/backend_override.tf
+          # Override S3 backend with local so init works without AWS creds.
+          # Deployment uses S3 backend — this only validates HCL syntax.
+          printf 'terraform {\n  backend "local" {}\n}\n' > infra/ci_backend_override.tf
           terraform -chdir=infra init -reconfigure
-          rm infra/backend_override.tf
+          rm infra/ci_backend_override.tf
       - name: Terraform validate
         run: terraform -chdir=infra validate
 

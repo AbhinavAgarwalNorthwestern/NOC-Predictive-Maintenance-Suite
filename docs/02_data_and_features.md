@@ -77,7 +77,7 @@ simulator was constructed to match the constraints they'd impose.
 ### Architectural pattern: extensible feature groups
 
 The feature pipeline uses a registry pattern in
-[`src/battery_pdm/streaming/autonomy/features.py`](../src/battery_pdm/streaming/autonomy/features.py):
+[`src/battery_pdm/common/features.py (shared feature pipeline)`](../src/battery_pdm/common/features.py (shared feature pipeline)):
 
 ```python
 @register_feature_group("alarm_history", requires=("alarms",))
@@ -108,7 +108,7 @@ features = compute_features(
 ```
 
 **Why this pattern matters:**
-- Same code serves all 3 models (failure, autonomy, drain predictor)
+- Same code serves both active models (failure, drain predictor)
 - Adding telemetry later = one new `@register_feature_group("telemetry_stats", requires=("telemetry",))` function
 - Each group declares its required inputs, so missing data fails loud at function
   entry instead of producing silent NaN cascades
