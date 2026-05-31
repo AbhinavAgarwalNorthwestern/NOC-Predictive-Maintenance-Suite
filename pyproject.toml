@@ -15,6 +15,9 @@ dependencies = [
     "metaflow>=2.12",
     "evidently>=0.4,<0.5",
     "pandera[pandas]>=0.20",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "pytest-cov>=4.1",
 ]
 
 [build-system]
