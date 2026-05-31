@@ -58,10 +58,10 @@ class ClimateProfile:
     """
 
     annual_mean_temp_c: float
-    annual_amplitude_c: float       # peak-summer to peak-winter half-range
-    daily_amplitude_c: float        # daily diurnal swing
-    summer_peak_doy: int = 196      # day-of-year of peak heat (~mid-July, NH)
-    humidity_factor: float = 1.0    # multiplier on thermal stress (humid coastal > dry)
+    annual_amplitude_c: float  # peak-summer to peak-winter half-range
+    daily_amplitude_c: float  # daily diurnal swing
+    summer_peak_doy: int = 196  # day-of-year of peak heat (~mid-July, NH)
+    humidity_factor: float = 1.0  # multiplier on thermal stress (humid coastal > dry)
 
 
 @dataclass(frozen=True)
@@ -73,10 +73,10 @@ class LoadShedProfile:
     Pakistan grid stress peaks in summer due to AC demand.
     """
 
-    avg_outages_per_day: float          # mean outage count per day per site
-    avg_outage_duration_min: float      # mean discharge duration
-    duration_std_min: float             # std for log-normal duration sampling
-    summer_amplification: float = 1.5   # multiplier on rate during summer
+    avg_outages_per_day: float  # mean outage count per day per site
+    avg_outage_duration_min: float  # mean discharge duration
+    duration_std_min: float  # std for log-normal duration sampling
+    summer_amplification: float = 1.5  # multiplier on rate during summer
 
 
 @dataclass
@@ -86,9 +86,9 @@ class BatteryBank:
     install_date: datetime
     manufacturer: Manufacturer
     nominal_capacity_ah: float = 200.0
-    n_strings: int = 1                  # parallel strings
-    n_cells_per_string: int = 24        # -48V VRLA: 24 cells × 2V nominal
-    initial_health: float = 1.0         # 1.0 = nameplate at install
+    n_strings: int = 1  # parallel strings
+    n_cells_per_string: int = 24  # -48V VRLA: 24 cells × 2V nominal
+    initial_health: float = 1.0  # 1.0 = nameplate at install
 
 
 @dataclass
@@ -113,7 +113,7 @@ class SimulationConfig:
 
     start_date: datetime
     end_date: datetime
-    telemetry_interval_min: int = 5     # 5-min telemetry sampling cadence
+    telemetry_interval_min: int = 5  # 5-min telemetry sampling cadence
     seed: int = 42
     climate_by_region: dict[Region, ClimateProfile] = field(default_factory=dict)
     load_shed_by_region: dict[Region, LoadShedProfile] = field(default_factory=dict)

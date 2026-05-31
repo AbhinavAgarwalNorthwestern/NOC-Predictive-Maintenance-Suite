@@ -1,0 +1,78 @@
+name: Deploy — Build, Push ECR, Update ECS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "dashboard/**"
+      - "api/**"
+      - "Dockerfile"
+      - "dashboard/Dockerfile"
+      - "api/Dockerfile"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPO: 998716768706.dkr.ecr.ap-south-1.amazonaws.com/battery-pdm-dev
+  ECS_CLUSTER: battery-pdm-dev-noc
+  ECS_SERVICE: battery-pdm-dev-noc
+
+jobs:
+  deploy-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::998716768706:role/battery-pdm-dev-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push dashboard image
+        run: |
+          docker build -t $ECR_REPO:dashboard-latest -t $ECR_REPO:latest -f dashboard/Dockerfile .
+          docker push $ECR_REPO:dashboard-latest
+          docker push $ECR_REPO:latest
+
+      - name: Force ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force-new-deployment \
+            --region $AWS_REGION
+
+      - name: Wait for stable deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE \
+            --region $AWS_REGION
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'api/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::998716768706:role/battery-pdm-dev-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API image
+        run: |
+          docker build -t $ECR_REPO:api-latest -f api/Dockerfile .
+          docker push $ECR_REPO:api-latest

@@ -51,8 +51,8 @@ from dataclasses import dataclass, replace
 # Physics constants — adjust if you have specific manufacturer data.
 # ---------------------------------------------------------------------------
 
-R_GAS_J_PER_MOL_K: float = 8.314           # ideal gas constant
-T_REF_K: float = 298.15                     # 25°C reference
+R_GAS_J_PER_MOL_K: float = 8.314  # ideal gas constant
+T_REF_K: float = 298.15  # 25°C reference
 
 # VRLA activation energy. Literature values 40-70 kJ/mol depending on
 # failure mode (positive grid corrosion ~50, negative active mass ~40).
@@ -60,15 +60,15 @@ T_REF_K: float = 298.15                     # 25°C reference
 ACTIVATION_ENERGY_J_PER_MOL: float = 50_000.0
 
 # Nominal cell voltages
-V_FLOAT_PER_CELL: float = 2.27              # float voltage at 25°C
-V_OPEN_CIRCUIT_PER_CELL: float = 2.10       # OCV at full SoC
-V_LVD_PER_CELL: float = 1.75                # low-voltage disconnect threshold
-V_TEMP_COMPENSATION_PER_C: float = -0.003   # float voltage drops with temp
+V_FLOAT_PER_CELL: float = 2.27  # float voltage at 25°C
+V_OPEN_CIRCUIT_PER_CELL: float = 2.10  # OCV at full SoC
+V_LVD_PER_CELL: float = 1.75  # low-voltage disconnect threshold
+V_TEMP_COMPENSATION_PER_C: float = -0.003  # float voltage drops with temp
 
 # PSoC parameters — calibrate so that pure PSoC operation roughly halves
 # expected lifetime vs proper recharge regimes.
-PSOC_THRESHOLD_SOC: float = 0.95            # below this, sulfation accumulates
-PSOC_AGING_COEFFICIENT: float = 0.8          # calibrated: PSoC-heavy sites fail in 2-4 yrs
+PSOC_THRESHOLD_SOC: float = 0.95  # below this, sulfation accumulates
+PSOC_AGING_COEFFICIENT: float = 0.8  # calibrated: PSoC-heavy sites fail in 2-4 yrs
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +153,9 @@ def temperature_acceleration_factor(
     """
     t_k = temp_c + 273.15
     t_ref_k = 298.15
-    exponent = (activation_energy_j_per_mol/R_GAS_J_PER_MOL_K) * (1.0/t_ref_k - 1.0/t_k)
+    exponent = (activation_energy_j_per_mol / R_GAS_J_PER_MOL_K) * (
+        1.0 / t_ref_k - 1.0 / t_k
+    )
     return math.exp(exponent)
 
 
@@ -189,11 +191,11 @@ def psoc_aging_multiplier(
     TODO (USER): implement.
     """
     if soc >= psoc_threshold:
-            return 1.0
+        return 1.0
     else:
         depth_factor = (psoc_threshold - soc) / psoc_threshold
         return 1.0 + coefficient * depth_factor
-    
+
 
 def update_health(
     state: CellState,
@@ -244,33 +246,35 @@ def update_health(
 
     base_health_decay_per_hour = HEALTH_DECAY_PER_YEAR / (365 * 24)
     decay = (
-            base_health_decay_per_hour
-            * temp_factor
-            * psoc_factor
-            * (1 + cycle_factor)
-            * dt_hours
-        )
+        base_health_decay_per_hour
+        * temp_factor
+        * psoc_factor
+        * (1 + cycle_factor)
+        * dt_hours
+    )
     new_health = max(0.0, state.health - decay)
 
-    new_cumulative_throughput_ah = state.cumulative_throughput_ah + abs(current_a) * dt_hours
+    new_cumulative_throughput_ah = (
+        state.cumulative_throughput_ah + abs(current_a) * dt_hours
+    )
     if state.soc < PSOC_THRESHOLD_SOC:
-        new_time_in_psoc_hours = state.time_in_psoc_hours +  dt_hours
+        new_time_in_psoc_hours = state.time_in_psoc_hours + dt_hours
     else:
         new_time_in_psoc_hours = state.time_in_psoc_hours
-    
+
     new_arrhenius_age_factor = state.arrhenius_age_factor + temp_factor * dt_hours
     sulfation_rate = 5e-4
     sulfation_delta = sulfation_rate * dt_hours * max(0, PSOC_THRESHOLD_SOC - state.soc)
     new_sulfation_index = min(state.sulfation_index + sulfation_delta, 10.0)
-    
 
-
-
-    return replace(state,health = new_health,
-                    cumulative_throughput_ah = new_cumulative_throughput_ah,
-                    time_in_psoc_hours = new_time_in_psoc_hours,
-                    arrhenius_age_factor = new_arrhenius_age_factor, 
-                    sulfation_index = new_sulfation_index )
+    return replace(
+        state,
+        health=new_health,
+        cumulative_throughput_ah=new_cumulative_throughput_ah,
+        time_in_psoc_hours=new_time_in_psoc_hours,
+        arrhenius_age_factor=new_arrhenius_age_factor,
+        sulfation_index=new_sulfation_index,
+    )
 
 
 def coulomb_counting_step(
@@ -293,7 +297,7 @@ def coulomb_counting_step(
     delta_soc = -(current_a * dt_hours) / effective_capacity
     new_soc = max(0.0, min(1.0, state.soc + delta_soc))
     return replace(state, soc=new_soc)
-    
+
 
 # ---------------------------------------------------------------------------
 # Discharge / charge voltage dynamics — YOU IMPLEMENT

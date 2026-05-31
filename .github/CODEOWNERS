@@ -1,0 +1,14 @@
+# CODEOWNERS - automatic reviewer assignment for PRs.
+# Format: <pattern> <owner1> <owner2>...
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Catch-all: all files require review from project owner
+* @AbhinavAgarwalNorthwestern
+
+# Critical paths require explicit review
+/src/battery_pdm/flows/        @AbhinavAgarwalNorthwestern
+/src/battery_pdm/monitoring/   @AbhinavAgarwalNorthwestern
+/infra/                        @AbhinavAgarwalNorthwestern
+/.github/workflows/            @AbhinavAgarwalNorthwestern
+/scripts/register_step_functions.py  @AbhinavAgarwalNorthwestern
+/scripts/batch_entrypoint.sh   @AbhinavAgarwalNorthwestern

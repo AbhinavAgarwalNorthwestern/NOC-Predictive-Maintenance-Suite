@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Stage 1: Fast checks (lint, format, types) — fail-fast for quick feedback
+  # ---------------------------------------------------------------------------
+  fast-checks:
+    name: Fast checks (lint/format/types)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Ruff lint
+        run: uv run ruff check src/ tests/ scripts/
+      - name: Ruff format check
+        run: uv run ruff format --check src/ tests/
+      - name: Mypy
+        run: uv run mypy src/battery_pdm/ --ignore-missing-imports
+        continue-on-error: true  # gradual typing — not required to pass
+
+  # ---------------------------------------------------------------------------
+  # Stage 2: Unit + integration tests with coverage
+  # ---------------------------------------------------------------------------
+  test:
+    name: Tests + coverage
+    runs-on: ubuntu-latest
+    needs: fast-checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Run tests with coverage
+        run: |
+          uv run pytest tests/ \
+            --cov=src/battery_pdm \
+            --cov-report=xml \
+            --cov-report=term-missing:skip-covered \
+            --cov-fail-under=60 \
+            -q --tb=short
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  # ---------------------------------------------------------------------------
+  # Stage 3: Security scan (Bandit + dependency audit)
+  # ---------------------------------------------------------------------------
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+    needs: fast-checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install bandit
+        run: pip install bandit[toml]
+      - name: Run bandit security scan
+        run: bandit -r src/battery_pdm/ -ll -ii
+        continue-on-error: true  # advisory
+
+  # ---------------------------------------------------------------------------
+  # Stage 4: Terraform validate (infra changes are syntactically correct)
+  # ---------------------------------------------------------------------------
+  terraform-validate:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+      - name: Terraform fmt check
+        run: terraform -chdir=infra fmt -check -recursive
+        continue-on-error: true
+      - name: Terraform init
+        run: terraform -chdir=infra init -backend=false
+      - name: Terraform validate
+        run: terraform -chdir=infra validate
+
+  # ---------------------------------------------------------------------------
+  # Stage 5: Build Docker images (only after all checks pass)
+  # ---------------------------------------------------------------------------
+  build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: [test, security, terraform-validate]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ML image
+        run: docker build -t battery-pdm:test .
+      - name: Build dashboard image
+        run: docker build -t battery-pdm-dashboard:test -f dashboard/Dockerfile .
+      - name: Build API image
+        run: docker build -t battery-pdm-api:test -f api/Dockerfile .
+
+  # ---------------------------------------------------------------------------
+  # Stage 6: CI summary — single required check for branch protection
+  # ---------------------------------------------------------------------------
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [fast-checks, test, security, terraform-validate, build]
+    if: always()
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          if [[ "${{ needs.fast-checks.result }}" != "success" || \
+                "${{ needs.test.result }}" != "success" || \
+                "${{ needs.terraform-validate.result }}" != "success" || \
+                "${{ needs.build.result }}" != "success" ]]; then
+            echo "One or more required CI jobs failed"
+            exit 1
+          fi
+          echo "All required CI jobs passed"

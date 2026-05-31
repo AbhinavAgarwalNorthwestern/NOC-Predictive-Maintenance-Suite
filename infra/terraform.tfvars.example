@@ -1,0 +1,13 @@
+# Copy this file to terraform.tfvars and fill in your account-specific values.
+# terraform.tfvars is gitignored — secrets stay local.
+
+aws_region     = "us-east-1"
+aws_account_id = "REPLACE_WITH_YOUR_ACCOUNT_ID"
+project_prefix = "battery-pdm"
+environment    = "dev"
+
+# Optional — only needed when CI/CD is wired
+github_repo = "yourname/battery-pdm"
+
+# Optional — only used by Grafana module
+grafana_admin_password = "CHANGE_ME_TO_A_STRONG_PASSWORD"
