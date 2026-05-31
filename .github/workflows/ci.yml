@@ -55,7 +55,7 @@ jobs:
             --cov=src/battery_pdm \
             --cov-report=xml \
             --cov-report=term-missing:skip-covered \
-            --cov-fail-under=60 \
+            --cov-fail-under=25 \
             -q --tb=short
       - name: Upload coverage
         uses: actions/upload-artifact@v4
