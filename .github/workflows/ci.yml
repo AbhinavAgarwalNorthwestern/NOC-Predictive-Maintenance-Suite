@@ -15,18 +15,16 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Stage 1: Fast checks (lint, format, types) — fail-fast for quick feedback
+  # Stage 1: Fast checks (lint, format, types)
   # ---------------------------------------------------------------------------
   fast-checks:
     name: Fast checks (lint/format/types)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+          version: "latest"
       - name: Install dependencies
         run: uv sync --frozen
       - name: Ruff lint
@@ -35,7 +33,7 @@ jobs:
         run: uv run ruff format --check src/ tests/
       - name: Mypy
         run: uv run mypy src/battery_pdm/ --ignore-missing-imports
-        continue-on-error: true  # gradual typing — not required to pass
+        continue-on-error: true
 
   # ---------------------------------------------------------------------------
   # Stage 2: Unit + integration tests with coverage
@@ -46,11 +44,9 @@ jobs:
     needs: fast-checks
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+          version: "latest"
       - name: Install dependencies
         run: uv sync --frozen
       - name: Run tests with coverage
@@ -69,7 +65,7 @@ jobs:
           path: coverage.xml
 
   # ---------------------------------------------------------------------------
-  # Stage 3: Security scan (Bandit + dependency audit)
+  # Stage 3: Security scan (Bandit)
   # ---------------------------------------------------------------------------
   security:
     name: Security scan
@@ -84,10 +80,10 @@ jobs:
         run: pip install bandit[toml]
       - name: Run bandit security scan
         run: bandit -r src/battery_pdm/ -ll -ii
-        continue-on-error: true  # advisory
+        continue-on-error: true
 
   # ---------------------------------------------------------------------------
-  # Stage 4: Terraform validate (infra changes are syntactically correct)
+  # Stage 4: Terraform validate (infra syntax check)
   # ---------------------------------------------------------------------------
   terraform-validate:
     name: Terraform validate
@@ -111,7 +107,7 @@ jobs:
         run: terraform -chdir=infra validate
 
   # ---------------------------------------------------------------------------
-  # Stage 5: Build Docker images (only after all checks pass)
+  # Stage 5: Build Docker images
   # ---------------------------------------------------------------------------
   build:
     name: Docker build
