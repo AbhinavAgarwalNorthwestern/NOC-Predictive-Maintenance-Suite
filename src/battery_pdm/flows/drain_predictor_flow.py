@@ -248,12 +248,14 @@ class DrainPredictorFlow(FlowSpec):
 
         # Alert levels: COLD_START signals operator to monitor manually
         self.alerts["alert_level"] = self.alerts.apply(
-            lambda r: "COLD_START"
-            if not r["scorable"]
-            else (
-                "HIGH"
-                if r["drain_risk_48h"] >= 0.6
-                else ("MEDIUM" if r["drain_risk_48h"] >= 0.4 else "LOW")
+            lambda r: (
+                "COLD_START"
+                if not r["scorable"]
+                else (
+                    "HIGH"
+                    if r["drain_risk_48h"] >= 0.6
+                    else ("MEDIUM" if r["drain_risk_48h"] >= 0.4 else "LOW")
+                )
             ),
             axis=1,
         )
