@@ -127,6 +127,40 @@ module "schedules" {
   job_definitions = module.batch.job_definitions
 }
 
+# ─────────────────────────────────────────────────────────────────────
+# 11. Operational alerting — SNS + EventBridge for SFN/Batch failures
+#     Silent failures are how outages become disasters. This module
+#     fan-outs failure events to email/Slack/PagerDuty subscribers.
+# ─────────────────────────────────────────────────────────────────────
+module "alerting" {
+  source             = "./modules/alerting"
+  name_prefix        = local.name_prefix
+  alerts_bucket_name = module.s3.bucket_names["alerts"]
+  ops_email          = var.ops_email
+}
+
+output "ops_alerts_topic_arn" {
+  description = "SNS topic for failure notifications. Subscribe via: aws sns subscribe"
+  value       = module.alerting.ops_alerts_topic_arn
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 12. MLflow tracking server — t3.micro EC2, SQLite + S3 artifacts.
+#     Hourly SQLite backup to S3 (zero data loss on EC2 failure).
+#     Cost: ~$8/mo.
+# ─────────────────────────────────────────────────────────────────────
+module "mlflow_server" {
+  source             = "./modules/mlflow_server"
+  name_prefix        = local.name_prefix
+  region             = var.aws_region
+  mlflow_bucket_name = module.s3.bucket_names["mlflow"]
+}
+
+output "mlflow_tracking_uri" {
+  description = "MLflow UI URL — open in browser to view experiments"
+  value       = module.mlflow_server.mlflow_tracking_uri
+}
+
 output "noc_app_dashboard_url" {
   description = "NOC Dashboard URL (Streamlit on ECS)"
   value       = module.noc_app.dashboard_url

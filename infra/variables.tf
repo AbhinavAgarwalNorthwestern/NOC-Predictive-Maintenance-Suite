@@ -70,6 +70,12 @@ variable "github_repo" {
   default     = ""
 }
 
+variable "ops_email" {
+  description = "Email address for SNS failure alerts (subscribe via emailed confirmation link)"
+  type        = string
+  default     = ""
+}
+
 locals {
   # Derived names — never edit these directly, edit project_prefix + environment
   name_prefix      = "${var.project_prefix}-${var.environment}"

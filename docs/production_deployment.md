@@ -262,23 +262,45 @@ That's what we did.
 
 ---
 
-## Other production gaps worth flagging
+## Resilience and reliability
 
-These aren't ML-system-specific but matter at scale:
+### Outage handling — what happens when ap-south-1 goes down
+
+| Failure | Behavior | Recovery |
+|---------|---------|----------|
+| Fargate Spot interruption | Step Functions retries 2x with exponential backoff (60s, 120s) | Automatic |
+| Single Step Functions execution fails | EventBridge rule fires → SNS topic → email/Slack alert | Manual investigation |
+| Single Batch job fails | EventBridge rule fires → SNS topic → email/Slack alert | Manual investigation |
+| Regional outage (S3 or ECS down) | All retries fail; SFN executions queued; EventBridge keeps trying | When region recovers, run `scripts/backfill_after_outage.sh START_DATE END_DATE` |
+| MLflow EC2 dies | systemd restarts mlflow on the same instance; if instance dies, terraform apply provisions new one | SQLite backup restored from hourly S3 snapshot (max 1h data loss) |
+| NOC dashboard task dies | ECS replaces the task automatically (desired_count=1) | Zero downtime (a few seconds) |
+
+### Backfill after outage
+
+Flows are **idempotent** — same `alarms.parquet` input produces the same alerts. Re-running a missed day's scoring just refills the gap in S3.
+
+```bash
+# After ap-south-1 outage from 2026-06-01 to 2026-06-03:
+bash scripts/backfill_after_outage.sh 2026-06-01 2026-06-03
+```
+
+Triggers `drain-predictor`, `drift-monitor`, `failure-scoring` for each day. Backfill takes ~5 min per day per flow.
+
+### Future work (FAANG-level upgrades)
+
+These would tip the system from "small-team production" to "global-scale production":
 
 | Gap | Severity | Fix when... |
 |-----|---------:|-------------|
+| Batch `retryStrategy.attempts > 1` not configured at job-def level (we rely on SFN retry only) | low | Job-def retry is cheaper for transient Fargate Spot interruptions; SFN retry adds 60-180s latency. Set `attempts=3` on each `aws_batch_job_definition`. |
+| Single region (ap-south-1) | medium | Need DR. Approach: replicate S3 cross-region, deploy a "warm standby" copy of infra in ap-southeast-1, switch traffic via Route 53 health checks. ~2x cost. |
 | No VPC isolation (using default VPC) | low | Multi-team or compliance requirements |
 | No KMS encryption (using AES256 default) | low | Data classification ≥ confidential |
-| No backup automation (S3 versioning helps) | low | Models valuable enough that loss is unacceptable |
-| Single region (ap-south-1) | medium | Need disaster recovery |
-| No alerting on flow failures (logs only) | medium | Once flows are critical to operations |
-| No PagerDuty/Slack integration | medium | Same |
+| No S3 backup automation (versioning helps) | low | Models valuable enough that loss is unacceptable |
 | Container `IMMUTABLE` not enforced in ECR | low | Want to guarantee a tag never changes (compliance) |
 | No secrets rotation | low | Compliance requirement |
 | No WAF on ALB | low | Service is public-facing (not the case here) |
 | No fine-grained IAM per flow | medium | Multiple teams sharing the account |
-| Default network ACLs | low | Strict zero-trust networking required |
 
 ---
 
